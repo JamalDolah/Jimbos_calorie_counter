@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Calorie Graph</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div id="plotly-graph"></div>
+    <script>
+        var graphJSON = JSON.parse('{{ graphJSON | tojson | safe }}');
+        console.log(graphJSON);
+        Plotly.newPlot('plotly-graph', graphJSON.data, graphJSON.layout);
+    </script>
+</body>
+</html>

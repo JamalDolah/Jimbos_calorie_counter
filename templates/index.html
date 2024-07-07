@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Jimbo's Calorie Counter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        h2 {
+            color: #555;
+        }
+        form {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #666;
+        }
+        input[type="text"],
+        input[type="number"],
+        input[type="file"],
+        select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        #plotly-graph {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+        #plotly-graph p {
+            color: #888;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Jimbo's Calorie Counter</h1>
+
+    <!-- Form to add food -->
+    <form id="addFoodForm">
+        <label for="food_name">Food Name:</label>
+        <input type="text" id="food_name" name="food_name" required>
+        <label for="calories">Calories:</label>
+        <input type="number" id="calories" name="calories" required>
+        <button type="submit">Add Food</button>
+    </form>
+
+    <!-- Form to create a day -->
+    <form id="createDayForm">
+        <label for="day_name">Day Name:</label>
+        <input type="text" id="day_name" name="day_name" required>
+        <label for="food_select">Select Food:</label>
+        <select id="food_select" name="food_select" multiple required>
+            {% for food in food_items %}
+                <option value="{{ food[0] }}">{{ food[1] }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Create Day</button>
+    </form>
+
+    <!-- Section to scan barcode -->
+    <h2>Scan Barcode</h2>
+    <input type="file" id="imageInput" accept="image/*">
+    <button id="scanButton">Scan Barcode</button>
+    <p id="foodInfo"></p> <!-- Display scanned food information here -->
+
+    <!-- Graph -->
+    <div id="graph" style="width:100%; height:500px;"></div>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        var graphData = {{ graphJSON|safe }};
+        Plotly.newPlot('graph', graphData.data, graphData.layout);
+
+        // Barcode detection
+        const imageInput = document.getElementById('imageInput');
+        const scanButton = document.getElementById('scanButton');
+        const foodInfo = document.getElementById('foodInfo'); // Update to foodInfo element
+
+        scanButton.addEventListener('click', async () => {
+    const file = imageInput.files[0];
+    if (!file) {
+        alert('Please select an image first.');
+        return;
+    }
+
+    if (!('BarcodeDetector' in globalThis)) {
+        alert('Barcode Detector is not supported by this browser.');
+        return;
+    }
+
+    const barcodeDetector = new BarcodeDetector({ formats: ['ean_13', 'upc_a', 'qr_code'] });
+    const imageBitmap = await createImageBitmap(file);
+
+    try {
+        const barcodes = await barcodeDetector.detect(imageBitmap);
+        if (barcodes.length > 0) {
+            const barcodeValue = barcodes[0].rawValue;
+
+            // Send the barcode value to the server
+            const response = await fetch('/scan_barcode', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ barcode: barcodeValue })
+            });
+
+            const result = await response.json();
+            if (result.status === 'success') {
+                // Update foodInfo with food name and calories
+                foodInfo.textContent = `Food: ${result.food_name}, Calories: ${result.calories}`;
+            } else {
+                foodInfo.textContent = `Error: ${result.message}`;
+            }
+        } else {
+            foodInfo.textContent = 'No barcodes detected.';
+        }
+    } catch (error) {
+        console.error(error);
+        foodInfo.textContent = 'Error detecting barcode.';
+    }
+});
+
+    </script>
+</body>
+</html>
